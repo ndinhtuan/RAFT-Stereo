@@ -55,12 +55,11 @@ def demo(args):
             output_directory_city.mkdir(exist_ok=True)
 
             depth = -flow_up.cpu().numpy().squeeze()
-            depth = depth.astype(np.uint16)
-            #print(np.max(depth), np.min(depth)); exit()
             if args.save_numpy:
-                np.save(output_directory_city / f"{file_stem}.npy", flow_up.cpu().numpy().squeeze())
+                # np.save(output_directory_city / f"{file_stem}.npy", flow_up.cpu().numpy().squeeze())
+                np.save(output_directory_city / f"{file_stem}.npy", depth)
             #plt.imsave(output_directory / f"{file_stem}.png", -flow_up.cpu().numpy().squeeze(), cmap='jet')
-            imageio.imwrite(output_directory_city / f"{file_stem}.png", depth)
+            # imageio.imwrite(output_directory_city / f"{file_stem}.png", depth)
 
 
 if __name__ == '__main__':
