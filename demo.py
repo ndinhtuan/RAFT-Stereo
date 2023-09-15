@@ -1,6 +1,7 @@
 import sys
 sys.path.append('core')
 
+import os
 import argparse
 import glob
 import numpy as np
@@ -11,6 +12,7 @@ from raft_stereo import RAFTStereo
 from utils.utils import InputPadder
 from PIL import Image
 from matplotlib import pyplot as plt
+import imageio
 
 
 DEVICE = 'cuda'
@@ -46,10 +48,19 @@ def demo(args):
             _, flow_up = model(image1, image2, iters=args.valid_iters, test_mode=True)
             flow_up = padder.unpad(flow_up).squeeze()
 
-            file_stem = imfile1.split('/')[-2]
+            file_stem = imfile1.split('/')[-1].split('.')[0]
+            city_name = imfile1.split('/')[-2]
+            output_directory_city = output_directory / city_name
+
+            output_directory_city.mkdir(exist_ok=True)
+
+            depth = -flow_up.cpu().numpy().squeeze()
+            depth = depth.astype(np.uint16)
+            #print(np.max(depth), np.min(depth)); exit()
             if args.save_numpy:
-                np.save(output_directory / f"{file_stem}.npy", flow_up.cpu().numpy().squeeze())
-            plt.imsave(output_directory / f"{file_stem}.png", -flow_up.cpu().numpy().squeeze(), cmap='jet')
+                np.save(output_directory_city / f"{file_stem}.npy", flow_up.cpu().numpy().squeeze())
+            #plt.imsave(output_directory / f"{file_stem}.png", -flow_up.cpu().numpy().squeeze(), cmap='jet')
+            imageio.imwrite(output_directory_city / f"{file_stem}.png", depth)
 
 
 if __name__ == '__main__':
