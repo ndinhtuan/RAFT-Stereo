@@ -11,6 +11,7 @@ from pathlib import Path
 from core.raft_stereo import RAFTStereo
 from core.utils.utils import InputPadder
 from demo import load_image, DEVICE
+import shutil
 
 class CityscapesVPSDisparityCreator(object):
 
@@ -19,6 +20,8 @@ class CityscapesVPSDisparityCreator(object):
         self.__left_imgs_dir = args.left_imgs_dir
         self.__left_imgs_path = glob.glob("{}/*.png".format(self.__left_imgs_dir))
         self.__right_imgs_dir = args.right_imgs_dir
+        self.__existed_dir = args.existed_directory
+        self.__with_vps_prefix = args.with_vps_prefix
         self.__args = args
 
         if not os.path.isdir(self.__args.output_directory):
@@ -32,8 +35,13 @@ class CityscapesVPSDisparityCreator(object):
         """
 
         name_left_img = left_img_path.split("/")[-1]
-        city_name = name_left_img.split("_")[2]
-        name_right_img = name_left_img[len("0000_0000_"):].replace("newImg8bit", "rightImg8bit").replace("leftImg8bit", "rightImg8bit")
+
+        if self.__with_vps_prefix:
+            city_name = name_left_img.split("_")[2]
+            name_right_img = name_left_img[len("0000_0000_"):].replace("newImg8bit", "rightImg8bit").replace("leftImg8bit", "rightImg8bit")
+        else:
+            city_name = name_left_img.split("_")[0]
+            name_right_img = name_left_img.replace("newImg8bit", "rightImg8bit").replace("leftImg8bit", "rightImg8bit")
         
         return os.path.join(self.__right_imgs_dir, city_name, name_right_img)
 
@@ -67,13 +75,19 @@ class CityscapesVPSDisparityCreator(object):
         with torch.no_grad():
 
             for left_img_path in tqdm(self.__left_imgs_path):
+                
+                name_left_img = left_img_path.split("/")[-1]
+                path_to_save = os.path.join(self.__args.output_directory, name_left_img.replace("png", "npy"))
+                path_to_existed_save = os.path.join(self.__existed_dir, name_left_img.replace("png", "npy"))
+                # Check whether the disparity map already existed, then copy it
+                if os.path.isfile(path_to_existed_save):
+                    shutil.copyfile(path_to_existed_save, path_to_save)
+                    continue
 
                 right_img_path = self.__get_right_img_path(left_img_path=left_img_path)
                 disparity = self.__predict_one(img_left_path=left_img_path, img_right_path=right_img_path)
 
                 # Save disparity
-                name_left_img = left_img_path.split("/")[-1]
-                path_to_save = os.path.join(self.__args.output_directory, name_left_img.replace("png", "npy"))
                 np.save(path_to_save, disparity)
 
 def main():
@@ -84,6 +98,11 @@ def main():
     parser.add_argument('-l', '--left_imgs_dir', help="path to all first (left) frames", default="datasets/Middlebury/MiddEval3/testH/*/im0.png")
     parser.add_argument('-r', '--right_imgs_dir', help="path to all second (right) frames", default="datasets/Middlebury/MiddEval3/testH/*/im1.png")
     parser.add_argument('--output_directory', help="directory to save output", default="demo_output")
+    parser.add_argument('--existed_directory', help="The directory consists of existed disparity, the program will avoid to predict\
+                            the existed disparity, it will rather copy them.")
+    parser.add_argument('--with_vps_prefix', action='store_true', help='If this option is activated, the image file name will include Cityscapes-VPS prefix\
+                                                                        , such as 0498_2984.')
+
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     parser.add_argument('--valid_iters', type=int, default=32, help='number of flow-field updates during forward pass')
 
