@@ -70,6 +70,16 @@ class CityscapesVPSDisparityCreator(object):
 
         return depth
     
+    def __is_disparity_existed(self, name_left_img: str) -> str:
+
+        exact_img_paths = glob.glob(os.path.join(self.__existed_dir, "*{}".format(name_left_img)))
+        print(exact_img_paths, os.path.join(self.__existed_dir, "*{}".format(name_left_img)))
+
+        if len(exact_img_paths) > 0:
+            return exact_img_paths[0]
+        else:
+            return None
+
     def run(self) -> None:
 
         with torch.no_grad():
@@ -78,10 +88,12 @@ class CityscapesVPSDisparityCreator(object):
                 
                 name_left_img = left_img_path.split("/")[-1]
                 path_to_save = os.path.join(self.__args.output_directory, name_left_img.replace("png", "npy"))
-                path_to_existed_save = os.path.join(self.__existed_dir, name_left_img.replace("png", "npy"))
+
                 # Check whether the disparity map already existed, then copy it
-                if os.path.isfile(path_to_existed_save):
+                path_to_existed_save = self.__is_disparity_existed(name_left_img=name_left_img.replace("png", "npy"))
+                if path_to_existed_save is not None:
                     shutil.copyfile(path_to_existed_save, path_to_save)
+                    print("{} is already existed, avoid generating disparity.".format(name_left_img))
                     continue
 
                 right_img_path = self.__get_right_img_path(left_img_path=left_img_path)
